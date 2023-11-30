@@ -1,0 +1,6 @@
+apiVersion: fsrv.cloud/v1
+kind: Database
+metadata:
+  name: my-helloworld
+spec:
+  database: postgres

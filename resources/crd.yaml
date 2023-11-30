@@ -1,0 +1,30 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databases.fsrv.cloud
+spec:
+  group: fsrv.cloud
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - database
+              properties:
+                database:
+                  type: string
+                  enum:
+                    - postgres
+                message:
+                  type: string
+  scope: Namespaced
+  names:
+    plural: databases
+    singular: database
+    kind: Database
