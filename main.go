@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"log/slog"
 	"os"
 
@@ -66,7 +64,6 @@ func main() {
 	})).Namespace("").Watch(context.Background(), metav1.ListOptions{
 		Watch: true,
 	})
-
 	if watchInitError != nil {
 		panic(watchInitError)
 	}
@@ -78,19 +75,20 @@ func main() {
 				continue
 			}
 
-			buf := bytes.NewBuffer(nil)
-			databaseResourceData := &resourcesv1.Database{}
-			json.NewEncoder(buf).Encode(event.Object)
-			json.NewDecoder(buf).Decode(databaseResourceData)
+			databaseResourceData, convertError := resourcesv1.FromUnstructured(event.Object)
+			if convertError != nil {
+				slog.Error("failed to convert unstructured object", slog.String("error", convertError.Error()))
+				continue
+			}
 
 			secretData := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: SecretPrefix + databaseResourceData.Name,
+				},
 				StringData: map[string]string{
 					"username": databaseResourceData.AssembleDatabaseName(),
 					"password": uuid.NewString(),
 					"dsn":      databaseBackend.GetDSN(),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: SecretPrefix + databaseResourceData.Name,
 				},
 			}
 
@@ -104,7 +102,6 @@ func main() {
 				secretData.StringData["password"] = string(existingSecret.Data["password"])
 			}
 
-			// Now you can access the spec of the database
 			var databaseActionError error
 			switch event.Type {
 			case watch.Modified:
@@ -133,7 +130,7 @@ func main() {
 
 				slog.Info("deleting secret", slog.String("name", secretData.Name))
 				secretDeleteError := clientset.CoreV1().Secrets(databaseResourceData.Namespace).Delete(context.Background(), secretData.Name, metav1.DeleteOptions{})
-				if secretDeleteError != nil {
+				if secretDeleteError != nil && !errors.IsNotFound(secretDeleteError) {
 					panic(secretDeleteError.Error())
 				}
 			}

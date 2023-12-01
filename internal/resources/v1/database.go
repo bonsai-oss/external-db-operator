@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"bytes"
+	"encoding/json"
 	"regexp"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,4 +29,15 @@ func (d *Database) AssembleKubernetesName() string {
 
 func removeIllegalDatabaseCharacters(input string) string {
 	return regexp.MustCompile("[.-]+").ReplaceAllString(input, "_")
+}
+
+func FromUnstructured(data any) (*Database, error) {
+	buf := bytes.NewBuffer(nil)
+	databaseResourceData := &Database{}
+	if encodeError := json.NewEncoder(buf).Encode(data); encodeError != nil {
+		return nil, encodeError
+	}
+	decodeError := json.NewDecoder(buf).Decode(databaseResourceData)
+
+	return databaseResourceData, decodeError
 }

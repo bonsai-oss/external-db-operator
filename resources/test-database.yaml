@@ -18,3 +18,18 @@ metadata:
   name: demo3
 spec:
   database: postgres
+
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foo
+---
+apiVersion: fsrv.cloud/v1
+kind: Database
+metadata:
+  name: demo3
+  namespace: foo
+spec:
+  database: postgres
