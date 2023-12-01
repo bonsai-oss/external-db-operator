@@ -21,8 +21,6 @@ spec:
                   type: string
                   enum:
                     - postgres
-                message:
-                  type: string
   scope: Namespaced
   names:
     plural: databases

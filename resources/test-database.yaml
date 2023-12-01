@@ -1,6 +1,20 @@
 apiVersion: fsrv.cloud/v1
 kind: Database
 metadata:
-  name: my-helloworld
+  name: demo
+spec:
+  database: postgres
+---
+apiVersion: fsrv.cloud/v1
+kind: Database
+metadata:
+  name: demo2
+spec:
+  database: postgres
+---
+apiVersion: fsrv.cloud/v1
+kind: Database
+metadata:
+  name: demo3
 spec:
   database: postgres
