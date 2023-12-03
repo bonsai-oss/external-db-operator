@@ -44,43 +44,7 @@ func mustParseSettings() Settings {
 	return settings
 }
 
-func init() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		AddSource: true,
-	})))
-}
-
-type Settings struct {
-	DatabaseProvider string
-	DatabaseDsn      string
-}
-
-func main() {
-	settings := mustParseSettings()
-
-	const SecretPrefix = "edb-"
-
-	var clientConfig *rest.Config
-	var clientConfigError error
-	if os.Getenv("KUBECONFIG") == "" {
-		clientConfig, clientConfigError = rest.InClusterConfig()
-	} else {
-		clientConfig, clientConfigError = clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
-	}
-	if clientConfigError != nil {
-		panic(clientConfigError.Error())
-	}
-
-	client, err := dynamic.NewForConfig(clientConfig)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	clientset, clientSetCreateError := kubernetes.NewForConfig(clientConfig)
-	if clientSetCreateError != nil {
-		panic(clientSetCreateError.Error())
-	}
-
+func (app *Application) mustConfigureDatabaseProvider(settings Settings) {
 	databaseBackend, providerError := database.Provide(settings.DatabaseProvider)
 	if providerError != nil {
 		slog.Error("failed to provide database backend", slog.String("error", providerError.Error()))
@@ -92,7 +56,59 @@ func main() {
 		os.Exit(1)
 	}
 
-	watcher, watchInitError := client.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
+	app.Clients.Database = databaseBackend
+}
+
+func (app *Application) mustConfigureKubernetesClient() {
+	var clientConfig *rest.Config
+	var clientConfigError error
+	if os.Getenv("KUBECONFIG") == "" {
+		clientConfig, clientConfigError = rest.InClusterConfig()
+	} else {
+		clientConfig, clientConfigError = clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
+	}
+	if clientConfigError != nil {
+		panic(clientConfigError.Error())
+	}
+
+	var clientConfigurationError error
+	app.Clients.KubernetesDynamic, clientConfigurationError = dynamic.NewForConfig(clientConfig)
+	app.Clients.Kubernetes, clientConfigurationError = kubernetes.NewForConfig(clientConfig)
+	if clientConfigurationError != nil {
+		slog.Error("failed to create Kubernetes client", slog.String("error", clientConfigurationError.Error()))
+		os.Exit(1)
+	}
+}
+
+func init() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		AddSource: true,
+	})))
+}
+
+type Settings struct {
+	DatabaseProvider string
+	DatabaseDsn      string
+}
+
+type Application struct {
+	Clients struct {
+		Kubernetes        *kubernetes.Clientset
+		KubernetesDynamic *dynamic.DynamicClient
+		Database          database.Provider
+	}
+}
+
+func main() {
+	settings := mustParseSettings()
+	application := &Application{}
+	application.mustConfigureDatabaseProvider(settings)
+	defer application.Clients.Database.Close()
+	application.mustConfigureKubernetesClient()
+
+	const SecretPrefix = "edb-"
+
+	watcher, watchInitError := application.Clients.KubernetesDynamic.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
 		Group:    "fsrv.cloud",
 		Version:  "v1",
 		Resource: "databases",
@@ -123,11 +139,11 @@ func main() {
 				StringData: map[string]string{
 					"username": databaseResourceData.AssembleDatabaseName(),
 					"password": uuid.NewString(),
-					"dsn":      databaseBackend.GetDSN(),
+					"dsn":      application.Clients.Database.GetDSN(),
 				},
 			}
 
-			existingSecret, getExistingSecretError := clientset.CoreV1().Secrets(databaseResourceData.Namespace).Get(context.Background(), secretData.Name, metav1.GetOptions{})
+			existingSecret, getExistingSecretError := application.Clients.Kubernetes.CoreV1().Secrets(databaseResourceData.Namespace).Get(context.Background(), secretData.Name, metav1.GetOptions{})
 			if getExistingSecretError != nil && !errors.IsNotFound(getExistingSecretError) {
 				panic(getExistingSecretError.Error())
 			}
@@ -142,7 +158,7 @@ func main() {
 			case watch.Modified:
 				fallthrough
 			case watch.Added:
-				databaseActionError = databaseBackend.Apply(database.CreateOptions{
+				databaseActionError = application.Clients.Database.Apply(database.CreateOptions{
 					Name:     databaseResourceData.AssembleDatabaseName(),
 					Password: secretData.StringData["password"],
 				})
@@ -150,21 +166,21 @@ func main() {
 				var secretError error
 				if errors.IsNotFound(getExistingSecretError) {
 					slog.Info("creating secret", slog.String("name", secretData.Name), slog.String("namespace", databaseResourceData.Namespace))
-					_, secretError = clientset.CoreV1().Secrets(databaseResourceData.Namespace).Create(context.Background(), secretData, metav1.CreateOptions{})
+					_, secretError = application.Clients.Kubernetes.CoreV1().Secrets(databaseResourceData.Namespace).Create(context.Background(), secretData, metav1.CreateOptions{})
 				} else {
 					slog.Info("updating secret", slog.String("name", secretData.Name), slog.String("namespace", databaseResourceData.Namespace))
-					_, secretError = clientset.CoreV1().Secrets(databaseResourceData.Namespace).Update(context.Background(), secretData, metav1.UpdateOptions{})
+					_, secretError = application.Clients.Kubernetes.CoreV1().Secrets(databaseResourceData.Namespace).Update(context.Background(), secretData, metav1.UpdateOptions{})
 				}
 				if secretError != nil {
 					panic(secretError.Error())
 				}
 			case watch.Deleted:
-				databaseActionError = databaseBackend.Destroy(database.DestroyOptions{
+				databaseActionError = application.Clients.Database.Destroy(database.DestroyOptions{
 					Name: databaseResourceData.AssembleDatabaseName(),
 				})
 
 				slog.Info("deleting secret", slog.String("name", secretData.Name), slog.String("namespace", databaseResourceData.Namespace))
-				secretDeleteError := clientset.CoreV1().Secrets(databaseResourceData.Namespace).Delete(context.Background(), secretData.Name, metav1.DeleteOptions{})
+				secretDeleteError := application.Clients.Kubernetes.CoreV1().Secrets(databaseResourceData.Namespace).Delete(context.Background(), secretData.Name, metav1.DeleteOptions{})
 				if secretDeleteError != nil && !errors.IsNotFound(secretDeleteError) {
 					panic(secretDeleteError.Error())
 				}

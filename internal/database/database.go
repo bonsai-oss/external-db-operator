@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"io"
 )
 
 type Type string
@@ -11,6 +12,8 @@ type Provider interface {
 	Apply(options CreateOptions) error
 	Destroy(options DestroyOptions) error
 	GetDSN() string
+	Ping() error
+	io.Closer
 }
 
 type CreateOptions struct {
