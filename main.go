@@ -40,6 +40,12 @@ func mustParseSettings() Settings {
 		Default("postgres://postgres:postgres@localhost:5432/postgres").
 		StringVar(&settings.DatabaseDsn)
 
+	app.Flag("instance-name", "The name of the instance.").
+		Short('i').
+		Envar("INSTANCE_NAME").
+		Default("default").
+		StringVar(&settings.InstanceName)
+
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	return settings
@@ -92,6 +98,7 @@ func init() {
 type Settings struct {
 	DatabaseProvider string
 	DatabaseDsn      string
+	InstanceName     string
 }
 
 type Application struct {
@@ -102,6 +109,11 @@ type Application struct {
 	}
 }
 
+const (
+	SecretPrefix                = "edb-"
+	ResourceLabelDifferentiator = "fsrv.cloud/external-db-operator"
+)
+
 func main() {
 	settings := mustParseSettings()
 	application := &Application{}
@@ -111,14 +123,13 @@ func main() {
 
 	connectionInfo := application.Clients.Database.GetConnectionInfo()
 
-	const SecretPrefix = "edb-"
-
 	watcher, watchInitError := application.Clients.KubernetesDynamic.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
 		Group:    "fsrv.cloud",
 		Version:  "v1",
 		Resource: "databases",
 	})).Namespace("").Watch(context.Background(), metav1.ListOptions{
-		Watch: true,
+		Watch:         true,
+		LabelSelector: fmt.Sprintf("%s=%s", ResourceLabelDifferentiator, settings.InstanceName),
 	})
 	if watchInitError != nil {
 		panic(watchInitError)
