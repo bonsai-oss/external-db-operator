@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -81,8 +82,10 @@ func (app *Application) mustConfigureKubernetesClient() {
 }
 
 func init() {
+	_, isDebug := os.LookupEnv("DEBUG")
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		AddSource: true,
+		AddSource: isDebug,
+		Level:     slog.LevelDebug,
 	})))
 }
 
@@ -105,6 +108,8 @@ func main() {
 	application.mustConfigureDatabaseProvider(settings)
 	defer application.Clients.Database.Close()
 	application.mustConfigureKubernetesClient()
+
+	connectionInfo := application.Clients.Database.GetConnectionInfo()
 
 	const SecretPrefix = "edb-"
 
@@ -139,7 +144,9 @@ func main() {
 				StringData: map[string]string{
 					"username": databaseResourceData.AssembleDatabaseName(),
 					"password": uuid.NewString(),
-					"dsn":      application.Clients.Database.GetDSN(),
+					"host":     connectionInfo.Host,
+					"port":     fmt.Sprintf("%d", connectionInfo.Port),
+					"database": databaseResourceData.AssembleDatabaseName(),
 				},
 			}
 
