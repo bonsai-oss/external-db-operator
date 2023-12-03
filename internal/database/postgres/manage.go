@@ -20,11 +20,16 @@ func Provide() database.Provider {
 }
 
 type Provider struct {
+	dsn          string
 	dbConnection *pgx.Conn
 }
 
-func (p *Provider) GetDSN() string {
-	return p.dbConnection.Config().ConnString()
+func (p *Provider) GetConnectionInfo() database.ConnectionInfo {
+	conn, _ := pgx.ParseConfig(p.dsn)
+	return database.ConnectionInfo{
+		Host: conn.Host,
+		Port: conn.Port,
+	}
 }
 
 func (p *Provider) Apply(options database.CreateOptions) error {
@@ -78,6 +83,7 @@ func (p *Provider) Destroy(options database.DestroyOptions) error {
 }
 
 func (p *Provider) Initialize(dsn string) error {
+	p.dsn = dsn
 	dbConnection, databaseConnectionError := pgx.Connect(context.Background(), dsn)
 	if databaseConnectionError != nil {
 		return databaseConnectionError

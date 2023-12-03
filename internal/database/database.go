@@ -11,9 +11,14 @@ type Provider interface {
 	Initialize(dsn string) error
 	Apply(options CreateOptions) error
 	Destroy(options DestroyOptions) error
-	GetDSN() string
+	GetConnectionInfo() ConnectionInfo
 	Ping() error
 	io.Closer
+}
+
+type ConnectionInfo struct {
+	Host string
+	Port uint16
 }
 
 type CreateOptions struct {
