@@ -31,7 +31,7 @@ func mustParseSettings() Settings {
 		Short('p').
 		Envar("DATABASE_PROVIDER").
 		Default("postgres").
-		StringVar(&settings.DatabaseProvider)
+		EnumVar(&settings.DatabaseProvider, "postgres")
 
 	app.Flag("database-dsn", "The DSN to use for the database provider.").
 		Short('d').
