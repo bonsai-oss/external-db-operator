@@ -23,10 +23,6 @@ func (d *Database) AssembleDatabaseName() string {
 	return removeIllegalDatabaseCharacters(d.Namespace + "_" + d.Name)
 }
 
-func (d *Database) AssembleKubernetesName() string {
-	return d.Name
-}
-
 func removeIllegalDatabaseCharacters(input string) string {
 	return regexp.MustCompile("[.-]+").ReplaceAllString(input, "_")
 }
