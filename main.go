@@ -121,6 +121,9 @@ func main() {
 	defer application.Clients.Database.Close()
 	application.mustConfigureKubernetesClient()
 
+	labelSelectorValue := fmt.Sprintf("%s-%s", settings.DatabaseProvider, settings.InstanceName)
+	slog.Info("watching resources with", slog.String(ResourceLabelDifferentiator, labelSelectorValue))
+
 	connectionInfo := application.Clients.Database.GetConnectionInfo()
 
 	watcher, watchInitError := application.Clients.KubernetesDynamic.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
@@ -129,7 +132,7 @@ func main() {
 		Resource: "databases",
 	})).Namespace("").Watch(context.Background(), metav1.ListOptions{
 		Watch:         true,
-		LabelSelector: fmt.Sprintf("%s=%s", ResourceLabelDifferentiator, settings.InstanceName),
+		LabelSelector: fmt.Sprintf("%s=%s", ResourceLabelDifferentiator, labelSelectorValue),
 	})
 	if watchInitError != nil {
 		panic(watchInitError)
