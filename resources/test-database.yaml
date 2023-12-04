@@ -10,6 +10,6 @@ metadata:
   name: demo
   namespace: foo
   labels:
-    fsrv.cloud/external-db-operator: default
+    fsrv.cloud/external-db-operator: postgres-default
 spec:
   database: postgres
