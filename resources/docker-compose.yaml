@@ -2,7 +2,7 @@
 version: '3'
 services:
   postgres-1:
-    image: postgres:16
+    image: postgres:16@sha256:5e54e634c7103f48d89420dac49e0c292999d4448badae5976afb7106e68ff23
     restart: always
     command: ["postgres", "-c", "log_statement=all"]
     environment:
