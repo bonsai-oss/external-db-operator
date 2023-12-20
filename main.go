@@ -162,8 +162,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	worker := lifecycle.NewManager(application.Clients)
-	go worker.Run(rootContext)
+	lifecycleManager := lifecycle.NewManager(application.Clients)
+	go lifecycleManager.Run(rootContext)
 
 	// empty events do occur on crd changes and trigger until the next restart of the watcher
 	var emptyEventCount int
@@ -183,7 +183,7 @@ func main() {
 				emptyEventCount++
 				continue
 			}
-			worker.Events <- event
+			lifecycleManager.Events <- event
 		}
 	}
 }
