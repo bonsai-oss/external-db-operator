@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/hellofresh/health-go/v5"
@@ -23,7 +25,7 @@ import (
 
 func mustParseSettings() Settings {
 	var settings Settings
-	app := kingpin.New(ProgramName, "A Kubernetes operator for managing external databases.")
+	app := kingpin.New(programName, "A Kubernetes operator for managing external databases.")
 	app.HelpFlag.Short('h')
 
 	app.Flag("database-provider", "The database provider to use.").
@@ -85,6 +87,28 @@ func (app *Application) mustConfigureKubernetesClient() {
 	}
 }
 
+func (app *Application) startSelfService(ctx context.Context) {
+	healthCheck, _ := health.New(
+		health.WithComponent(health.Component{Name: programName}),
+		health.WithChecks(health.Config{
+			Name:  "database",
+			Check: app.Clients.Database.HealthCheck,
+		}))
+
+	healthCheckHandler := http.NewServeMux()
+	healthCheckHandler.HandleFunc("/status", healthCheck.HandlerFunc)
+	server := &http.Server{Addr: ":8080", Handler: healthCheckHandler}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			ctx.Done()
+		}
+	}()
+	defer server.Shutdown(ctx)
+
+	<-ctx.Done()
+}
+
 func init() {
 	_, isDebug := os.LookupEnv("DEBUG")
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
@@ -104,40 +128,34 @@ type Application struct {
 }
 
 const (
-	ProgramName                 = "external-db-operator"
-	ResourceLabelDifferentiator = "fsrv.cloud/" + ProgramName
+	programName = "external-db-operator"
+	// resourceLabelDifferentiator is used to differentiate between different instances of the operator. This needs to be set in the resource definition of the database objects.
+	resourceLabelDifferentiator = "fsrv.cloud/" + programName
+	// maxEmptyEventsCount describes the maximum number of empty events to receive before terminating the operator.
+	maxEmptyEventsCount = 10
 )
 
 func main() {
+	rootContext, cancelRootContext := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	defer cancelRootContext()
+
 	settings := mustParseSettings()
 	application := &Application{}
 	application.mustConfigureDatabaseProvider(settings)
 	defer application.Clients.Database.Close()
 	application.mustConfigureKubernetesClient()
-
-	healthCheck, _ := health.New(health.WithComponent(health.Component{
-		Name: ProgramName,
-	}), health.WithSystemInfo(), health.WithChecks(health.Config{
-		Name:  "database:ping",
-		Check: application.Clients.Database.HealthCheck,
-	}))
-
-	go func() {
-		healthCheckHandler := http.NewServeMux()
-		healthCheckHandler.HandleFunc("/status", healthCheck.HandlerFunc)
-		http.ListenAndServe(":8080", healthCheckHandler)
-	}()
+	go application.startSelfService(rootContext)
 
 	labelSelectorValue := fmt.Sprintf("%s-%s", settings.DatabaseProvider, settings.InstanceName)
-	slog.Info("watching resources with", slog.String(ResourceLabelDifferentiator, labelSelectorValue))
+	slog.Info("watching resources with", slog.String(resourceLabelDifferentiator, labelSelectorValue))
 
 	watcher, watchInitError := application.Clients.KubernetesDynamic.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
 		Group:    "fsrv.cloud",
 		Version:  "v1",
 		Resource: "databases",
-	})).Namespace("").Watch(context.Background(), metav1.ListOptions{
+	})).Namespace("").Watch(rootContext, metav1.ListOptions{
 		Watch:         true,
-		LabelSelector: fmt.Sprintf("%s=%s", ResourceLabelDifferentiator, labelSelectorValue),
+		LabelSelector: fmt.Sprintf("%s=%s", resourceLabelDifferentiator, labelSelectorValue),
 	})
 	if watchInitError != nil {
 		slog.Error("failed to initialize watch", slog.String("error", watchInitError.Error()))
@@ -145,21 +163,27 @@ func main() {
 	}
 
 	worker := lifecycle.NewManager(application.Clients)
-	go worker.Run(context.Background())
+	go worker.Run(rootContext)
 
 	// empty events do occur on crd changes and trigger until the next restart of the watcher
 	var emptyEventCount int
 
-	for event := range watcher.ResultChan() {
-		// terminate the operator if we receive too many empty events
-		if emptyEventCount > 10 {
-			slog.Error("too many empty events, exiting")
+	for {
+		select {
+		case <-rootContext.Done():
+			slog.Info("received termination signal, shutting down")
 			return
+		case event := <-watcher.ResultChan():
+			// terminate the operator if we receive too many empty events
+			if emptyEventCount > maxEmptyEventsCount {
+				slog.Error("too many empty events, exiting")
+				return
+			}
+			if event.Type == "" {
+				emptyEventCount++
+				continue
+			}
+			worker.Events <- event
 		}
-		if event.Type == "" {
-			emptyEventCount++
-			continue
-		}
-		worker.Events <- event
 	}
 }
