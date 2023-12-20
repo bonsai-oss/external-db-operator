@@ -96,6 +96,6 @@ func (p *Provider) Close() error {
 	return p.dbConnection.Close(context.Background())
 }
 
-func (p *Provider) Ping() error {
-	return p.dbConnection.Ping(context.Background())
+func (p *Provider) HealthCheck(ctx context.Context) error {
+	return p.dbConnection.Ping(ctx)
 }

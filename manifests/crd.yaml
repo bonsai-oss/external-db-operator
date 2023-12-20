@@ -11,16 +11,6 @@ spec:
       schema:
         openAPIV3Schema:
           type: object
-          properties:
-            spec:
-              type: object
-              required:
-                - database
-              properties:
-                database:
-                  type: string
-                  enum:
-                    - postgres
   scope: Namespaced
   names:
     plural: databases
