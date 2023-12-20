@@ -11,5 +11,3 @@ metadata:
   namespace: foo
   labels:
     fsrv.cloud/external-db-operator: postgres-default
-spec:
-  database: postgres

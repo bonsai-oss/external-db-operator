@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"io"
 )
@@ -12,7 +13,7 @@ type Provider interface {
 	Apply(options CreateOptions) error
 	Destroy(options DestroyOptions) error
 	GetConnectionInfo() ConnectionInfo
-	Ping() error
+	HealthCheck(ctx context.Context) error
 	io.Closer
 }
 

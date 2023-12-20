@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/google/uuid"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	"github.com/hellofresh/health-go/v5"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -20,12 +18,12 @@ import (
 
 	"external-db-operator/internal/database"
 	_ "external-db-operator/internal/database/postgres"
-	resourcesv1 "external-db-operator/internal/resources/v1"
+	"external-db-operator/internal/lifecycle"
 )
 
 func mustParseSettings() Settings {
 	var settings Settings
-	app := kingpin.New("external-db-operator", "A Kubernetes operator for managing external databases.")
+	app := kingpin.New(ProgramName, "A Kubernetes operator for managing external databases.")
 	app.HelpFlag.Short('h')
 
 	app.Flag("database-provider", "The database provider to use.").
@@ -102,16 +100,12 @@ type Settings struct {
 }
 
 type Application struct {
-	Clients struct {
-		Kubernetes        *kubernetes.Clientset
-		KubernetesDynamic *dynamic.DynamicClient
-		Database          database.Provider
-	}
+	Clients lifecycle.Clients
 }
 
 const (
-	SecretPrefix                = "edb-"
-	ResourceLabelDifferentiator = "fsrv.cloud/external-db-operator"
+	ProgramName                 = "external-db-operator"
+	ResourceLabelDifferentiator = "fsrv.cloud/" + ProgramName
 )
 
 func main() {
@@ -121,10 +115,21 @@ func main() {
 	defer application.Clients.Database.Close()
 	application.mustConfigureKubernetesClient()
 
+	healthCheck, _ := health.New(health.WithComponent(health.Component{
+		Name: ProgramName,
+	}), health.WithSystemInfo(), health.WithChecks(health.Config{
+		Name:  "database:ping",
+		Check: application.Clients.Database.HealthCheck,
+	}))
+
+	go func() {
+		healthCheckHandler := http.NewServeMux()
+		healthCheckHandler.HandleFunc("/status", healthCheck.HandlerFunc)
+		http.ListenAndServe(":8080", healthCheckHandler)
+	}()
+
 	labelSelectorValue := fmt.Sprintf("%s-%s", settings.DatabaseProvider, settings.InstanceName)
 	slog.Info("watching resources with", slog.String(ResourceLabelDifferentiator, labelSelectorValue))
-
-	connectionInfo := application.Clients.Database.GetConnectionInfo()
 
 	watcher, watchInitError := application.Clients.KubernetesDynamic.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
 		Group:    "fsrv.cloud",
@@ -135,80 +140,26 @@ func main() {
 		LabelSelector: fmt.Sprintf("%s=%s", ResourceLabelDifferentiator, labelSelectorValue),
 	})
 	if watchInitError != nil {
-		panic(watchInitError)
+		slog.Error("failed to initialize watch", slog.String("error", watchInitError.Error()))
+		os.Exit(1)
 	}
 
-	for {
-		select {
-		case event := <-watcher.ResultChan():
-			if event.Type == "" {
-				continue
-			}
+	worker := lifecycle.NewManager(application.Clients)
+	go worker.Run(context.Background())
 
-			databaseResourceData, convertError := resourcesv1.FromUnstructured(event.Object)
-			if convertError != nil {
-				slog.Error("failed to convert unstructured object", slog.String("error", convertError.Error()))
-				continue
-			}
+	// empty events do occur on crd changes and trigger until the next restart of the watcher
+	var emptyEventCount int
 
-			secretData := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: SecretPrefix + databaseResourceData.Name,
-				},
-				StringData: map[string]string{
-					"username": databaseResourceData.AssembleDatabaseName(),
-					"password": uuid.NewString(),
-					"host":     connectionInfo.Host,
-					"port":     fmt.Sprintf("%d", connectionInfo.Port),
-					"database": databaseResourceData.AssembleDatabaseName(),
-				},
-			}
-
-			existingSecret, getExistingSecretError := application.Clients.Kubernetes.CoreV1().Secrets(databaseResourceData.Namespace).Get(context.Background(), secretData.Name, metav1.GetOptions{})
-			if getExistingSecretError != nil && !errors.IsNotFound(getExistingSecretError) {
-				panic(getExistingSecretError.Error())
-			}
-
-			if !errors.IsNotFound(getExistingSecretError) {
-				// existingSecret.StringData is not populated by the Get() method
-				secretData.StringData["password"] = string(existingSecret.Data["password"])
-			}
-
-			var databaseActionError error
-			switch event.Type {
-			case watch.Modified:
-				fallthrough
-			case watch.Added:
-				databaseActionError = application.Clients.Database.Apply(database.CreateOptions{
-					Name:     databaseResourceData.AssembleDatabaseName(),
-					Password: secretData.StringData["password"],
-				})
-
-				var secretError error
-				if errors.IsNotFound(getExistingSecretError) {
-					slog.Info("creating secret", slog.String("name", secretData.Name), slog.String("namespace", databaseResourceData.Namespace))
-					_, secretError = application.Clients.Kubernetes.CoreV1().Secrets(databaseResourceData.Namespace).Create(context.Background(), secretData, metav1.CreateOptions{})
-				} else {
-					slog.Info("updating secret", slog.String("name", secretData.Name), slog.String("namespace", databaseResourceData.Namespace))
-					_, secretError = application.Clients.Kubernetes.CoreV1().Secrets(databaseResourceData.Namespace).Update(context.Background(), secretData, metav1.UpdateOptions{})
-				}
-				if secretError != nil {
-					panic(secretError.Error())
-				}
-			case watch.Deleted:
-				databaseActionError = application.Clients.Database.Destroy(database.DestroyOptions{
-					Name: databaseResourceData.AssembleDatabaseName(),
-				})
-
-				slog.Info("deleting secret", slog.String("name", secretData.Name), slog.String("namespace", databaseResourceData.Namespace))
-				secretDeleteError := application.Clients.Kubernetes.CoreV1().Secrets(databaseResourceData.Namespace).Delete(context.Background(), secretData.Name, metav1.DeleteOptions{})
-				if secretDeleteError != nil && !errors.IsNotFound(secretDeleteError) {
-					panic(secretDeleteError.Error())
-				}
-			}
-			if databaseActionError != nil {
-				panic(databaseActionError.Error())
-			}
+	for event := range watcher.ResultChan() {
+		// terminate the operator if we receive too many empty events
+		if emptyEventCount > 10 {
+			slog.Error("too many empty events, exiting")
+			return
 		}
+		if event.Type == "" {
+			emptyEventCount++
+			continue
+		}
+		worker.Events <- event
 	}
 }
