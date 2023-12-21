@@ -4,10 +4,10 @@ kind: Namespace
 metadata:
   name: foo
 ---
-apiVersion: fsrv.cloud/v1
+apiVersion: bonsai-oss.org/v1
 kind: Database
 metadata:
   name: demo
   namespace: foo
   labels:
-    fsrv.cloud/external-db-operator: postgres-default
+    bonsai-oss.org/external-db-operator: postgres-default

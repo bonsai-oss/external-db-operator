@@ -9,7 +9,7 @@ kind: ClusterRole
 metadata:
   name: external-db-operator-role
 rules:
-  - apiGroups: ["fsrv.cloud"]
+  - apiGroups: ["bonsai-oss.org"]
     resources: ["databases"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: [""]

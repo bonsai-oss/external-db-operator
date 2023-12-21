@@ -132,7 +132,7 @@ type Application struct {
 const (
 	programName = "external-db-operator"
 	// resourceLabelDifferentiator is used to differentiate between different instances of the operator. This needs to be set in the resource definition of the database objects.
-	resourceLabelDifferentiator = "fsrv.cloud/" + programName
+	resourceLabelDifferentiator = "bonsai-oss.org/" + programName
 	// maxEmptyEventsCount describes the maximum number of empty events to receive before terminating the operator.
 	maxEmptyEventsCount = 10
 )
@@ -152,7 +152,7 @@ func main() {
 	slog.Info("watching resources with", slog.String(resourceLabelDifferentiator, labelSelectorValue))
 
 	watcher, watchInitError := application.Clients.KubernetesDynamic.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
-		Group:    "fsrv.cloud",
+		Group:    "bonsai-oss.org",
 		Version:  "v1",
 		Resource: "databases",
 	})).Namespace("").Watch(rootContext, metav1.ListOptions{
