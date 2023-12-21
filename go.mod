@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.5.0
 	github.com/hellofresh/health-go/v5 v5.5.1
 	github.com/jackc/pgx/v5 v5.5.1
+	github.com/prometheus/client_golang v1.17.0
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
@@ -38,7 +39,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.17.0 // indirect
 	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.11.1 // indirect
