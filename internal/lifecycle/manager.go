@@ -3,12 +3,15 @@ package lifecycle
 import (
 	"context"
 	"log/slog"
+	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
 	"external-db-operator/internal/database"
+	"external-db-operator/internal/metrics"
 )
 
 type Manager struct {
@@ -44,10 +47,14 @@ func (m *Manager) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case event := <-m.Events:
+			start := time.Now()
 			handlingError := m.handleEvent(event)
 			if handlingError != nil {
 				slog.Error("failed to handle event", slog.String("error", handlingError.Error()))
 			}
+			metrics.EventProcessing.With(prometheus.Labels{
+				"event_type": string(event.Type),
+			}).Observe(time.Since(start).Seconds())
 		}
 	}
 }

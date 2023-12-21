@@ -11,6 +11,7 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/hellofresh/health-go/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -96,7 +97,8 @@ func (app *Application) startSelfService(ctx context.Context) {
 		}))
 
 	healthCheckHandler := http.NewServeMux()
-	healthCheckHandler.HandleFunc("/status", healthCheck.HandlerFunc)
+	healthCheckHandler.Handle("/status", healthCheck.Handler())
+	healthCheckHandler.Handle("/metrics", promhttp.Handler())
 	server := &http.Server{Addr: ":8080", Handler: healthCheckHandler}
 
 	go func() {
