@@ -14,3 +14,24 @@ include:
   - { project: fsrvcorp/templates, file: templates/language/go.yml, ref: 1.0.5 }
   - { project: fsrvcorp/templates, file: templates/release/semver.yml, ref: 1.0.5 }
   - { project: fsrvcorp/templates, file: templates/release/kaniko.yml, ref: 1.0.5 }
+
+Integration Tests:
+  image: ubuntu-22.04
+  stage: test
+  needs:
+    - go fmt
+  tags:
+    - hcloud
+  variables:
+    TESTFMT_VERSION: 1.0.2
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  before_script:
+    - (apt update && apt install -y curl wget) > /dev/null
+    - wget -q "https://github.com/bonsai-oss/testfmt/releases/download/v${TESTFMT_VERSION}/testfmt_${TESTFMT_VERSION}_linux_amd64" -O testfmt && chmod +x testfmt
+  script:
+    - bash -x integration-tests/_setup.sh
+    - ./testfmt -f junit -o test-results.xml -d ./integration-tests
+  artifacts:
+    reports:
+      junit: test-results.xml
+    when: always

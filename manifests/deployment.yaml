@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-db-operator
+spec:
+  selector:
+    matchLabels:
+      app: external-db-operator
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '8080'
+      labels:
+        app: external-db-operator
+    spec:
+      serviceAccountName: external-db-operator-sa
+      containers:
+        - name: external-db-operator
+          image: registry.fsrv.services/fsrvcorp/integration/external-db-operator:latest
+          resources:
+            limits:
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: DATABASE_DSN
+              value: "postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable"
+            - name: DATABASE_PROVIDER
+              value: "postgres"
