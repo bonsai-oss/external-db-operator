@@ -15,8 +15,6 @@ import (
 	resourcesv1 "external-db-operator/internal/resources/v1"
 )
 
-const SecretPrefix = "edb-"
-
 func (m *Manager) handleEvent(event watch.Event) error {
 	databaseResourceData, convertError := resourcesv1.FromUnstructured(event.Object)
 	if convertError != nil {
@@ -27,7 +25,7 @@ func (m *Manager) handleEvent(event watch.Event) error {
 
 	secretData := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: SecretPrefix + databaseResourceData.Name,
+			Name: m.secretPrefix + "-" + databaseResourceData.Name,
 		},
 		StringData: map[string]string{
 			"username": databaseResourceData.AssembleDatabaseName(),
