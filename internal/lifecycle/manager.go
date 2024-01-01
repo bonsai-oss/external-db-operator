@@ -15,8 +15,9 @@ import (
 )
 
 type Manager struct {
-	Events  chan watch.Event
-	clients Clients
+	Events       chan watch.Event
+	clients      Clients
+	secretPrefix string
 }
 
 type Clients struct {
@@ -25,7 +26,7 @@ type Clients struct {
 	Database          database.Provider
 }
 
-func NewManager(clients Clients) *Manager {
+func NewManager(clients Clients, secretPrefix string) *Manager {
 	if clients.Kubernetes == nil {
 		panic("kubernetes client is required")
 	}
@@ -35,9 +36,13 @@ func NewManager(clients Clients) *Manager {
 	if clients.Database == nil {
 		panic("database provider is required")
 	}
+	if secretPrefix == "" {
+		panic("secret prefix is required")
+	}
 	return &Manager{
-		Events:  make(chan watch.Event),
-		clients: clients,
+		Events:       make(chan watch.Event),
+		clients:      clients,
+		secretPrefix: secretPrefix,
 	}
 }
 

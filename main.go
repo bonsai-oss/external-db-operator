@@ -47,6 +47,12 @@ func mustParseSettings() Settings {
 		Default("default").
 		StringVar(&settings.InstanceName)
 
+	app.Flag("secret-prefix", "The prefix to use for the secret names.").
+		Short('s').
+		Envar("SECRET_PREFIX").
+		Default("edb").
+		StringVar(&settings.SecretPrefix)
+
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	return settings
@@ -123,6 +129,7 @@ type Settings struct {
 	DatabaseProvider string
 	DatabaseDsn      string
 	InstanceName     string
+	SecretPrefix     string
 }
 
 type Application struct {
@@ -164,7 +171,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	lifecycleManager := lifecycle.NewManager(application.Clients)
+	lifecycleManager := lifecycle.NewManager(application.Clients, settings.SecretPrefix)
 	go lifecycleManager.Run(rootContext)
 
 	// empty events do occur on crd changes and trigger until the next restart of the watcher
