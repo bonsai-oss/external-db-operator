@@ -14,6 +14,3 @@ done
 
 # Export the image to the local k3s installation
 docker save "${CI_REGISTRY_IMAGE}:latest" | k3s ctr images import -
-
-# Start databases
-kubectl apply -f manifests/databases/*.yaml

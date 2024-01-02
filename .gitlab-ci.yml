@@ -23,15 +23,15 @@ Integration Tests:
   tags:
     - hcloud
   variables:
-    TESTFMT_VERSION: 1.0.2
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   before_script:
-    - (apt update && apt install -y curl wget) > /dev/null
-    - wget -q "https://github.com/bonsai-oss/testfmt/releases/download/v${TESTFMT_VERSION}/testfmt_${TESTFMT_VERSION}_linux_amd64" -O testfmt && chmod +x testfmt
+    - (apt update && apt install -y curl) > /dev/null 2>&1
+    - curl -sSL https://go.dev/dl/go1.21.5.linux-amd64.tar.gz | tar -C /usr/local -xzf -
+    - /usr/local/go/bin/go install gotest.tools/gotestsum@latest
   script:
-    - bash -x integration-tests/_setup.sh
-    - ./testfmt -f junit -o test-results.xml -d ./integration-tests
+    - bash -x integration-tests/setup.sh
+    - /usr/local/go/bin/go test -v ./integration-tests/... --tags integration -json | /root/go/bin/gotestsum --junitfile report.xml --format testname --raw-command -- cat
   artifacts:
     reports:
-      junit: test-results.xml
+      junit: report.xml
     when: always
