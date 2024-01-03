@@ -1,0 +1,7 @@
+manifests/
+integration-tests/
+assets/
+.gitlab/
+.idea/
+README.md
+.gitlab-ci.yml

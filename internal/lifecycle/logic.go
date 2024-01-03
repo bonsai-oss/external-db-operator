@@ -21,7 +21,8 @@ func (m *Manager) handleEvent(event watch.Event) error {
 		return fmt.Errorf("failed to convert unstructured object: %w", convertError)
 	}
 
-	connectionInfo := m.clients.Database.GetConnectionInfo()
+	// TODO: handle GetConnectionInfo error
+	connectionInfo, _ := m.clients.Database.GetConnectionInfo()
 
 	secretData := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      volumes:
+        - name: data
+          emptyDir: {}
+      containers:
+        - name: mariadb
+          image: mariadb:latest
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              value: "password"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+spec:
+  selector:
+    app: mariadb
+  clusterIP: None
+  ports:
+    - name: mariadb
+      port: 3306
+      targetPort: 3306

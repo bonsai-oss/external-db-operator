@@ -12,7 +12,7 @@ type Provider interface {
 	Initialize(dsn string) error
 	Apply(options CreateOptions) error
 	Destroy(options DestroyOptions) error
-	GetConnectionInfo() ConnectionInfo
+	GetConnectionInfo() (ConnectionInfo, error)
 	HealthCheck(ctx context.Context) error
 	io.Closer
 }
@@ -37,6 +37,14 @@ type ProviderInitializer func() Provider
 
 func RegisterProvider(name string, initializer ProviderInitializer) {
 	registeredProviders[name] = initializer
+}
+
+func ListProviders() []string {
+	var providerNames []string
+	for name := range registeredProviders {
+		providerNames = append(providerNames, name)
+	}
+	return providerNames
 }
 
 type ErrUnknownProvider struct {

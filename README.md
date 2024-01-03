@@ -10,6 +10,7 @@ Operator Features:
 
 Supported Databases:
 - PostgreSQL (via [pgx](https://github.com/jackc/pgx))
+- MySQL / MariaDB / Percona (via [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql))
 
 Other databases can be added by implementing the [Provider](internal/database/database.go) interface.
 
