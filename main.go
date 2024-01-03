@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"external-db-operator/internal/database"
+	_ "external-db-operator/internal/database/mysql"
 	_ "external-db-operator/internal/database/postgres"
 	"external-db-operator/internal/lifecycle"
 )
@@ -33,7 +34,7 @@ func mustParseSettings() Settings {
 		Short('p').
 		Envar("DATABASE_PROVIDER").
 		Default("postgres").
-		EnumVar(&settings.DatabaseProvider, "postgres")
+		EnumVar(&settings.DatabaseProvider, database.ListProviders()...)
 
 	app.Flag("database-dsn", "The DSN to use for the database provider.").
 		Short('d').

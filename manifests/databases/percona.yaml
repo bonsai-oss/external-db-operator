@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: percona
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: percona
+  template:
+    metadata:
+      labels:
+        app: percona
+    spec:
+      volumes:
+        - name: data
+          emptyDir: {}
+      containers:
+        - name: percona
+          image: percona/percona-server:latest
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "password"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: percona
+spec:
+  selector:
+    app: percona
+  clusterIP: None
+  ports:
+    - name: percona
+      port: 3306
+      targetPort: 3306

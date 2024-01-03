@@ -1,4 +1,4 @@
-package postgres
+package mysql
 
 import (
 	"testing"
@@ -16,13 +16,8 @@ func TestProvider_GetDSN(t *testing.T) {
 	}{
 		{
 			name:     "success",
-			input:    "postgres://postgres:postgres@localhost:5432/postgres",
-			expected: database.ConnectionInfo{Host: "localhost", Port: 5432},
-		},
-		{
-			name:     "success with password",
-			input:    "postgres://foo:bar@1.2.3.4:3040/postgres",
-			expected: database.ConnectionInfo{Host: "1.2.3.4", Port: 3040},
+			input:    "username:password@protocol(mysql:3306)/dbname?param=value",
+			expected: database.ConnectionInfo{Host: "mysql", Port: 3306},
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

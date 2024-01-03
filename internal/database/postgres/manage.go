@@ -24,12 +24,17 @@ type Provider struct {
 	dbConnection *pgx.Conn
 }
 
-func (p *Provider) GetConnectionInfo() database.ConnectionInfo {
-	conn, _ := pgx.ParseConfig(p.dsn)
+var _ database.Provider = &Provider{}
+
+func (p *Provider) GetConnectionInfo() (database.ConnectionInfo, error) {
+	conn, dsnParseError := pgx.ParseConfig(p.dsn)
+	if dsnParseError != nil {
+		return database.ConnectionInfo{}, dsnParseError
+	}
 	return database.ConnectionInfo{
 		Host: conn.Host,
 		Port: conn.Port,
-	}
+	}, nil
 }
 
 func (p *Provider) Apply(options database.CreateOptions) error {
