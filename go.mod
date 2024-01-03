@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/google/uuid v1.5.0
-	github.com/hellofresh/health-go/v5 v5.5.1
+	github.com/hellofresh/health-go/v5 v5.5.2
 	github.com/jackc/pgx/v5 v5.5.1
 	github.com/prometheus/client_golang v1.18.0
 	github.com/stretchr/testify v1.8.4
