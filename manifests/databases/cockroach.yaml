@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cockroach
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cockroach
+  template:
+    metadata:
+      labels:
+        app: cockroach
+    spec:
+      volumes:
+        - name: data
+          emptyDir: {}
+      containers:
+        - name: cockroach
+          image: cockroachdb/cockroach
+          args:
+            - start-single-node
+            - --accept-sql-without-tls
+            - --sql-addr=0.0.0.0:5432
+          volumeMounts:
+            - name: data
+              mountPath: /cockroach/cockroach-data
+          env:
+            - name: COCKROACH_PASSWORD
+              value: "postgres"
+            - name: COCKROACH_DB
+              value: "postgres"
+            - name: COCKROACH_USER
+              value: "postgres"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cockroach
+spec:
+  selector:
+    app: cockroach
+  clusterIP: None
+  ports:
+    - name: cockroach
+      port: 5432
+      targetPort: 5432

@@ -140,7 +140,14 @@ func TestDatabase(t *testing.T) {
 		command  string
 	}
 
-	mysqlProviderCheckCommand := "mysql -h $(cat /etc/db-credentials/host) -P $(cat /etc/db-credentials/port) -u $(cat /etc/db-credentials/username) -p$(cat /etc/db-credentials/password) $(cat /etc/db-credentials/database) -e 'SELECT 1'"
+	postgresProviderCheck := check{
+		packages: []string{"postgresql-client"},
+		command:  "PGPASSWORD=$(cat /etc/db-credentials/password) psql -h $(cat /etc/db-credentials/host) -p $(cat /etc/db-credentials/port) -U $(cat /etc/db-credentials/username) -d $(cat /etc/db-credentials/database) -c 'SELECT 1'",
+	}
+	mysqlProviderCheck := check{
+		packages: []string{"default-mysql-client"},
+		command:  "mysql -h $(cat /etc/db-credentials/host) -P $(cat /etc/db-credentials/port) -u $(cat /etc/db-credentials/username) -p$(cat /etc/db-credentials/password) $(cat /etc/db-credentials/database) -e 'SELECT 1'",
+	}
 
 	for _, testCase := range []struct {
 		name     string
@@ -152,40 +159,38 @@ func TestDatabase(t *testing.T) {
 			name:     "postgres",
 			provider: "postgres",
 			dsn:      "postgres://postgres:postgres@postgres.databases.svc.cluster.local:5432/postgres?sslmode=disable",
-			check: check{
-				packages: []string{"postgresql-client"},
-				command:  "PGPASSWORD=$(cat /etc/db-credentials/password) psql -h $(cat /etc/db-credentials/host) -p $(cat /etc/db-credentials/port) -U $(cat /etc/db-credentials/username) -d $(cat /etc/db-credentials/database) -c 'SELECT 1'",
-			},
+			check:    postgresProviderCheck,
+		},
+		{
+			name:     "cockroach",
+			provider: "postgres",
+			dsn:      "postgres://postgres:postgres@cockroach.databases.svc.cluster.local:5432/postgres?sslmode=disable",
+			check:    postgresProviderCheck,
 		},
 		{
 			name:     "mysql",
 			provider: "mysql",
 			dsn:      "root:password@tcp(mysql.databases.svc.cluster.local:3306)/mysql?charset=utf8mb4&parseTime=True&loc=Local",
-			check: check{
-				packages: []string{"default-mysql-client"},
-				command:  mysqlProviderCheckCommand,
-			},
+			check:    mysqlProviderCheck,
 		},
 		{
 			name:     "mariadb",
 			provider: "mysql",
 			dsn:      "root:password@tcp(mariadb.databases.svc.cluster.local:3306)/mysql?charset=utf8mb4&parseTime=True&loc=Local",
-			check: check{
-				packages: []string{"default-mysql-client"},
-				command:  mysqlProviderCheckCommand,
-			},
+			check:    mysqlProviderCheck,
 		},
 		{
 			name:     "percona",
 			provider: "mysql",
 			dsn:      "root:password@tcp(percona.databases.svc.cluster.local:3306)/mysql?charset=utf8mb4&parseTime=True&loc=Local",
-			check: check{
-				packages: []string{"default-mysql-client"},
-				command:  mysqlProviderCheckCommand,
-			},
+			check:    mysqlProviderCheck,
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
+			databaseResourceNamespace := "test-namespace-" + testCase.name
+			kubectl("delete", "namespace", databaseResourceNamespace).Run()
+			kubectl("create", "namespace", databaseResourceNamespace).Run()
+
 			// Deploy test database
 			t.Run("deploy test database", func(t *testing.T) {
 				if deployTestDatabaseOutput, deployTestDatabaseError := kubectl("apply", "-n", databaseNamespace, "-f", "../manifests/databases/"+testCase.name+".yaml").CombinedOutput(); deployTestDatabaseError != nil {
@@ -212,11 +217,7 @@ func TestDatabase(t *testing.T) {
 				}
 			})
 
-			databaseResourceNamespace := "test-namespace-" + testCase.name
-
 			// Create test database
-			kubectl("delete", "namespace", databaseResourceNamespace).Run()
-			kubectl("create", "namespace", databaseResourceNamespace).Run()
 			_, createTestDatabaseError := kubernetesDynamicClient.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
 				Group:    "bonsai-oss.org",
 				Version:  "v1",

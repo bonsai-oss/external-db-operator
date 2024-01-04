@@ -8,12 +8,12 @@ Operator Features:
 
 ---
 
-The following database management systems are supported and tested. Compatible products should work as well but are not tested.
-Please submit an issue if you encounter any problems.
+The following database management systems are supported and tested. Compatible products should work as well but are not tested. \
+Please submit an issue if you encounter any problems or have a feature request.
 
 | Database                  | Provider   | Library                                                       |
 |---------------------------|------------|---------------------------------------------------------------|
-| PostgreSQL                | `postgres` | [pgx](https://github.com/jackc/pgx)                           |
+| PostgreSQL / CockroachDB  | `postgres` | [pgx](https://github.com/jackc/pgx)                           |
 | MySQL / MariaDB / Percona | `mysql`    | [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql) |
 
 
