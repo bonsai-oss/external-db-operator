@@ -156,6 +156,12 @@ func main() {
 	application.mustConfigureKubernetesClient()
 	go application.startSelfService(rootContext)
 
+	slog.Info("checking database connection")
+	if healthCheckError := application.Clients.Database.HealthCheck(rootContext); healthCheckError != nil {
+		slog.Error("failed to connect to database", slog.String("error", healthCheckError.Error()))
+		return
+	}
+
 	labelSelectorValue := fmt.Sprintf("%s-%s", settings.DatabaseProvider, settings.InstanceName)
 	slog.Info("watching resources with", slog.String(resourceLabelDifferentiator, labelSelectorValue))
 

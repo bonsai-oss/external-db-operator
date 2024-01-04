@@ -45,7 +45,7 @@ func (p *Provider) Apply(options database.CreateOptions) error {
 	}
 
 	var userExists bool
-	if checkUserError := p.dbConnection.QueryRow(context.Background(), "SELECT EXISTS (SELECT FROM pg_roles WHERE rolname = $1)", options.Name).Scan(&userExists); checkUserError != nil {
+	if checkUserError := p.dbConnection.QueryRow(context.Background(), "SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1)", options.Name).Scan(&userExists); checkUserError != nil {
 		return checkUserError
 	}
 
