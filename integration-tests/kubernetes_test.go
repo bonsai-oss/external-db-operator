@@ -44,7 +44,7 @@ func deployOperator(kubernetesApiClient *kubernetes.Clientset, name, provider, d
 
 	image, operatorImageGiven := os.LookupEnv("OPERATOR_IMAGE")
 	if !operatorImageGiven {
-		image = "registry.fsrv.services/fsrvcorp/integration/external-db-operator:latest"
+		image = "registry.gitlab.com/bonsai-oss/kubernetes/external-db-operator:latest"
 	}
 
 	deploymentConfiguration := &appsv1.Deployment{

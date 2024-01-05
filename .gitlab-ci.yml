@@ -11,9 +11,9 @@ stages:
 .kaniko_template_defaults:
   stage: build
 include:
-  - { project: fsrvcorp/templates, file: templates/language/go.yml, ref: 1.0.5 }
-  - { project: fsrvcorp/templates, file: templates/release/semver.yml, ref: 1.0.5 }
-  - { project: fsrvcorp/templates, file: templates/release/kaniko.yml, ref: 1.0.5 }
+  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/language/go.yml, ref: 1.0.5 }
+  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/release/semver.yml, ref: 1.0.5 }
+  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/release/kaniko.yml, ref: 1.0.5 }
 
 Integration Tests:
   image: ubuntu-22.04

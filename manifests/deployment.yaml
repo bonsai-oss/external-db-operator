@@ -18,7 +18,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: external-db-operator
-          image: registry.fsrv.services/fsrvcorp/integration/external-db-operator:latest
+          image: registry.gitlab.com/bonsai-oss/kubernetes/external-db-operator:latest
           resources:
             limits:
               memory: 1Gi
