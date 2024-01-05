@@ -1,12 +1,21 @@
 # External-DB-Operator
 
-The external db operator connects to an out of cluster database and manages the lifecycle of the database.
+The External DB Operator is a project that aims to simplify the management of out-of-cluster databases.
+It was created to address the following problems:
+- Out-of-cluster databases are not managed by kubernetes and therefore not part of the cluster lifecycle.
+- Manually managing database connection information does not provide a good base for automation.
 
-Operator Features:
-- Management of database side spaces and user accounts
+Operator Key Features:
+- Lifecycle management of dbms side databases, user accounts and database grants
 - Exposing database details as kubernetes secret
+- Support for multiple database providers (see [Supported Databases](#supported-databases))
 
----
+### Requirements
+
+* Kubernetes (tested with >= v1.28.3)
+* Admin user access to one of the supported databases (see [Supported Databases](#supported-databases))
+
+## Supported Databases
 
 The following database management systems are supported and tested. Compatible products should work as well but are not tested. \
 Please submit an issue if you encounter any problems or have a feature request.
@@ -20,6 +29,26 @@ Please submit an issue if you encounter any problems or have a feature request.
 Support for other databases can be added by implementing the [Provider](internal/database/database.go) interface.
 
 ## Usage
+
+### Getting Started
+
+The operator can be deployed to a cluster via the example [manifests](manifests) directory.\
+First, create the necessary rbac and crd resources:
+
+```shell
+kubectl apply -f manifests/rbac.yaml
+kubectl apply -f manifests/crd.yaml
+```
+
+Modify the [manifests/deployment.yaml](manifests/deployment.yaml) file to include the correct database dsn and provider.\
+Then, deploy the operator:
+
+```shell
+kubectl apply -f manifests/deployment.yaml
+```
+
+---
+
 
 Once the operator is deployed to the cluster, it will start watching for `bonsai-oss.org/v1/database` resources in all namespaces.
 

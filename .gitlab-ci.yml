@@ -22,6 +22,9 @@ Integration Tests:
     - go fmt
   tags:
     - hcloud
+  parallel:
+    matrix:
+      - INSTALL_K3S_CHANNEL: [latest, stable, testing]
   variables:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   before_script:
