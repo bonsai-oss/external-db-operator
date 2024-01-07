@@ -231,6 +231,9 @@ func TestDatabase(t *testing.T) {
 						"labels": map[string]interface{}{
 							"bonsai-oss.org/external-db-operator": testCase.provider + "-" + testCase.name,
 						},
+						"annotations": map[string]interface{}{
+							"testing": "true",
+						},
 					},
 				},
 			}, metav1.CreateOptions{})
@@ -253,6 +256,12 @@ func TestDatabase(t *testing.T) {
 
 				if !mapIncludesKeys(secret.Data, "username", "password", "host", "port", "database") {
 					t.Errorf("secret does not contain all required keys")
+					return
+				}
+
+				// check if secret has annotation testing=true
+				if secret.Annotations["testing"] != "true" {
+					t.Errorf("secret does not have annotation testing=true")
 					return
 				}
 			})

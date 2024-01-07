@@ -26,7 +26,9 @@ func (m *Manager) handleEvent(event watch.Event) error {
 
 	secretData := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: m.secretPrefix + "-" + databaseResourceData.Name,
+			Name:        m.secretPrefix + "-" + databaseResourceData.Name,
+			Annotations: databaseResourceData.Annotations,
+			Labels:      databaseResourceData.Labels,
 		},
 		StringData: map[string]string{
 			"username": databaseResourceData.AssembleDatabaseName(),
