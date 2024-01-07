@@ -49,7 +49,6 @@ kubectl apply -f manifests/deployment.yaml
 
 ---
 
-
 Once the operator is deployed to the cluster, it will start watching for `bonsai-oss.org/v1/database` resources in all namespaces.
 
 The name of the operator is specified via the `--instance-name` / `-i` flag and the used database provider in pattern `<provider>-<instance-name>`. An example for PostgreSQL would be `postgres-default`.\
@@ -57,6 +56,8 @@ That name is used to select the operator instance responsible for a specific dat
 
 After creating the database resources, the operator will create a secret containing the database connection details (database, host, port, username, password) in the same namespace as the database resource.
 It is named with the pattern `<secret_prefix>-<resource_name>` (e.a. `edb-your-database`). 
+
+When adding additional annotations / labels to the database resource, the operator will pass them to the secret as well.
 
 ### Parameters
 

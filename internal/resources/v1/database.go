@@ -15,9 +15,7 @@ type Database struct {
 	Spec DatabaseSpec `json:"spec,omitempty"`
 }
 
-type DatabaseSpec struct {
-	Database string `json:"database,omitempty"`
-}
+type DatabaseSpec struct{}
 
 func (d *Database) AssembleDatabaseName() string {
 	return removeIllegalDatabaseCharacters(d.Namespace + "_" + d.Name)
