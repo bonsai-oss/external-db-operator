@@ -11,9 +11,9 @@ stages:
 .kaniko_template_defaults:
   stage: build
 include:
-  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/language/go.yml, ref: 1.0.5 }
-  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/release/semver.yml, ref: 1.0.5 }
-  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/release/kaniko.yml, ref: 1.0.5 }
+  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/language/go.yml, ref: 1.0.6 }
+  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/release/semver.yml, ref: 1.0.6 }
+  - { project: bonsai-oss/organization/automate/ci-templates, file: templates/release/kaniko.yml, ref: 1.0.6 }
 
 Integration Tests:
   image: ubuntu-22.04
@@ -29,7 +29,7 @@ Integration Tests:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   before_script:
     - (apt update && apt install -y curl git) > /dev/null 2>&1
-    - curl -sSL https://go.dev/dl/go1.21.5.linux-amd64.tar.gz | tar -C /usr/local -xzf -
+    - curl -sSL https://go.dev/dl/go1.22.2.linux-amd64.tar.gz | tar -C /usr/local -xzf -
     - /usr/local/go/bin/go install gotest.tools/gotestsum@latest
   script:
     - bash -x integration-tests/setup.sh

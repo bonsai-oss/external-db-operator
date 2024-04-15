@@ -10,7 +10,7 @@ curl -sfL https://get.k3s.io | sh -
 curl -sSL https://get.docker.com | sh
 
 CONTAINER_IMAGE="${CI_REGISTRY_IMAGE}:$(git rev-parse --short HEAD)"
-docker build -t "${CONTAINER_IMAGE}" .
+docker build -t "${CONTAINER_IMAGE}" . || exit 1
 
 # Wait for K3s to be ready with kubectl; retry up to 60 seconds
 while :; do
