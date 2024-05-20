@@ -1,6 +1,8 @@
 module external-db-operator
 
-go 1.22
+go 1.22.0
+
+toolchain go1.22.3
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
@@ -10,9 +12,9 @@ require (
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/prometheus/client_golang v1.19.0
 	github.com/stretchr/testify v1.9.0
-	k8s.io/api v0.29.3
-	k8s.io/apimachinery v0.29.3
-	k8s.io/client-go v0.29.3
+	k8s.io/api v0.30.0
+	k8s.io/apimachinery v0.30.0
+	k8s.io/client-go v0.30.0
 )
 
 require (
