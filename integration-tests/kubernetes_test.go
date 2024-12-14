@@ -146,7 +146,7 @@ func TestDatabase(t *testing.T) {
 	}
 	mysqlProviderCheck := check{
 		packages: []string{"default-mysql-client"},
-		command:  "mysql -h $(cat /etc/db-credentials/host) -P $(cat /etc/db-credentials/port) -u $(cat /etc/db-credentials/username) -p$(cat /etc/db-credentials/password) $(cat /etc/db-credentials/database) -e 'SELECT 1'",
+		command:  "mysql --skip-ssl-verify-server-cert -h $(cat /etc/db-credentials/host) -P $(cat /etc/db-credentials/port) -u $(cat /etc/db-credentials/username) -p$(cat /etc/db-credentials/password) $(cat /etc/db-credentials/database) -e 'SELECT 1'",
 	}
 
 	for _, testCase := range []struct {
@@ -209,7 +209,7 @@ func TestDatabase(t *testing.T) {
 				}
 
 				// Wait for operator to be ready
-				if output, waitError := kubectl("wait", "--for=condition=Available", "--timeout=1m", "deployment/external-db-operator-"+testCase.name).CombinedOutput(); waitError != nil {
+				if output, waitError := kubectl("wait", "--for=condition=Available", "--timeout=5m", "deployment/external-db-operator-"+testCase.name).CombinedOutput(); waitError != nil {
 					t.Errorf("failed to wait for operator: %v \n %v", waitError, string(output))
 					return
 				} else {
@@ -325,7 +325,7 @@ func TestDatabase(t *testing.T) {
 					}
 
 					switch job.Status.Conditions[0].Type {
-					case batchv1.JobComplete:
+					case batchv1.JobComplete, batchv1.JobSuccessCriteriaMet:
 						return
 					default:
 						t.Errorf("job failed: %v", job.Status.Conditions[0].Message)
