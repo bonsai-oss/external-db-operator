@@ -162,44 +162,44 @@ func main() {
 		return
 	}
 
-	labelSelectorValue := fmt.Sprintf("%s-%s", settings.DatabaseProvider, settings.InstanceName)
-	slog.Info("watching resources with", slog.String(resourceLabelDifferentiator, labelSelectorValue))
-
-	watcher, watchInitError := application.Clients.KubernetesDynamic.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
-		Group:    "bonsai-oss.org",
-		Version:  "v1",
-		Resource: "databases",
-	})).Namespace("").Watch(rootContext, metav1.ListOptions{
-		Watch:         true,
-		LabelSelector: fmt.Sprintf("%s=%s", resourceLabelDifferentiator, labelSelectorValue),
-	})
-	if watchInitError != nil {
-		slog.Error("failed to initialize watch", slog.String("error", watchInitError.Error()))
-		os.Exit(1)
-	}
-
 	lifecycleManager := lifecycle.NewManager(application.Clients, settings.SecretPrefix)
 	go lifecycleManager.Run(rootContext)
 
-	// empty events do occur on crd changes and trigger until the next restart of the watcher
-	var emptyEventCount int
+	labelSelectorValue := fmt.Sprintf("%s-%s", settings.DatabaseProvider, settings.InstanceName)
+	slog.Info("watching resources with", slog.String(resourceLabelDifferentiator, labelSelectorValue))
 
 	for {
 		select {
 		case <-rootContext.Done():
-			slog.Info("received termination signal, shutting down")
 			return
-		case event := <-watcher.ResultChan():
-			// terminate the operator if we receive too many empty events
-			if emptyEventCount > maxEmptyEventsCount {
-				slog.Error("too many empty events, exiting")
-				return
+		default:
+			watcher, watchInitError := application.Clients.KubernetesDynamic.Resource(schema.GroupVersionResource(metav1.GroupVersionResource{
+				Group:    "bonsai-oss.org",
+				Version:  "v1",
+				Resource: "databases",
+			})).Namespace("").Watch(rootContext, metav1.ListOptions{
+				Watch:         true,
+				LabelSelector: fmt.Sprintf("%s=%s", resourceLabelDifferentiator, labelSelectorValue),
+			})
+			if watchInitError != nil {
+				slog.Error("failed to initialize watch", slog.String("error", watchInitError.Error()))
+				os.Exit(1)
 			}
-			if event.Type == "" {
-				emptyEventCount++
-				continue
-			}
-			lifecycleManager.Events <- event
+
+			eventProcessorError := func() error {
+				for {
+					select {
+					case <-rootContext.Done():
+						return fmt.Errorf("received termination signal, shutting down")
+					case event, ok := <-watcher.ResultChan():
+						if !ok {
+							return fmt.Errorf("watcher closed unexpectedly")
+						}
+						lifecycleManager.Events <- event
+					}
+				}
+			}()
+			slog.Error("failed to process events", slog.String("error", eventProcessorError.Error()))
 		}
 	}
 }

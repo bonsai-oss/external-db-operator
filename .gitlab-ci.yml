@@ -16,7 +16,7 @@ include:
   - { project: bonsai-oss/organization/automate/ci-templates, file: templates/release/kaniko.yml, ref: 1.0.10 }
 
 Integration Tests:
-  image: ubuntu-22.04
+  image: ubuntu:latest
   stage: test
   needs:
     - go fmt
@@ -26,6 +26,7 @@ Integration Tests:
     matrix:
       - INSTALL_K3S_CHANNEL: [latest, stable]
   variables:
+    HCLOUD_SERVER_TYPE: cpx31
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   before_script:
     - (apt update && apt install -y curl git) > /dev/null 2>&1
